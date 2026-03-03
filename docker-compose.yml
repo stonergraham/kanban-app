@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  kanban:
+    build: .
+    container_name: kanban-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - FLASK_ENV=production
+      - PORT=3000
+      - DATABASE_PATH=/app/data/kanban.db
+    volumes:
+      - ./data:/app/data
+    networks:
+      - kanban-network
+
+networks:
+  kanban-network:
+    driver: bridge
