@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>Dashboard</h1>
+        <div class="dashboard-actions">
+            <button class="btn btn-primary" onclick="alert('Create board functionality coming in Phase 3B!')">
+                + New Board
+            </button>
+        </div>
+    </div>
+    
+    <div class="dashboard-grid">
+        <!-- Parking Lot -->
+        {% if parking_lot %}
+        <div class="board-card parking-lot-card">
+            <h3>🅿️ My Parking Lot</h3>
+            <p>Personal backlog and notes</p>
+            <a href="#" class="btn btn-secondary btn-sm">Open</a>
+        </div>
+        {% endif %}
+        
+        <!-- My Boards -->
+        <div class="boards-section">
+            <h2>My Boards</h2>
+            {% if my_boards %}
+                <div class="boards-list">
+                    {% for board in my_boards %}
+                    <div class="board-card">
+                        <h3>{{ board.name }}</h3>
+                        <p>{{ board.description or 'No description' }}</p>
+                        <a href="#" class="btn btn-secondary btn-sm">Open</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">No boards yet. Create your first board!</p>
+            {% endif %}
+        </div>
+        
+        <!-- Shared Boards -->
+        {% if shared_boards %}
+        <div class="boards-section">
+            <h2>Shared With Me</h2>
+            <div class="boards-list">
+                {% for board in shared_boards %}
+                <div class="board-card shared-board-card">
+                    <h3>{{ board.name }}</h3>
+                    <p>{{ board.description or 'No description' }}</p>
+                    <small>Owner: {{ board.owner.username }}</small>
+                    <a href="#" class="btn btn-secondary btn-sm">Open</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="dashboard-metrics">
+        <h2>Quick Stats</h2>
+        <p class="empty-state">Metrics coming in Phase 3E!</p>
+    </div>
+</div>
+{% endblock %}
