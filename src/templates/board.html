@@ -79,7 +79,7 @@
             <div class="cards-list" id="assigned">
                 {% for card in assigned_cards %}
                 <div class="card-item" data-card-id="{{ card.id }}" draggable="true">
-                    <div class="card-content" onclick="window.location.href='{{ url_for('view_card', card_id=card.id) }}'">
+                    <div class="card-content" data-href="{{ url_for('view_card', card_id=card.id) }}">
                         <h3>{{ card.title }}</h3>
                         {% if card.priority != 'medium' %}
                         <span class="priority-badge priority-{{ card.priority }}">{{ card.priority }}</span>
@@ -96,11 +96,11 @@
                         {% endif %}
                     </div>
                     <div class="card-quick-actions">
-                        <button onclick="moveCard({{ card.id }}, 'in_progress'); event.stopPropagation();" class="btn-icon" title="Move to In Progress">→</button>
+                        <button class="btn-icon move-btn" data-move-to="in_progress" title="Move to In Progress">→</button>
                     </div>
                 </div>
                 {% endfor %}
-                
+
                 {% if not assigned_cards %}
                 <div class="empty-column">
                     <p>No cards assigned</p>
@@ -120,7 +120,7 @@
             <div class="cards-list" id="in_progress">
                 {% for card in in_progress_cards %}
                 <div class="card-item" data-card-id="{{ card.id }}" draggable="true">
-                    <div class="card-content" onclick="window.location.href='{{ url_for('view_card', card_id=card.id) }}'">
+                    <div class="card-content" data-href="{{ url_for('view_card', card_id=card.id) }}">
                         <h3>{{ card.title }}</h3>
                         {% if card.priority != 'medium' %}
                         <span class="priority-badge priority-{{ card.priority }}">{{ card.priority }}</span>
@@ -137,8 +137,8 @@
                         {% endif %}
                     </div>
                     <div class="card-quick-actions">
-                        <button onclick="moveCard({{ card.id }}, 'assigned'); event.stopPropagation();" class="btn-icon" title="Move to Assigned">←</button>
-                        <button onclick="moveCard({{ card.id }}, 'complete'); event.stopPropagation();" class="btn-icon" title="Move to Complete">→</button>
+                        <button class="btn-icon move-btn" data-move-to="assigned" title="Move to Assigned">←</button>
+                        <button class="btn-icon move-btn" data-move-to="complete" title="Move to Complete">→</button>
                     </div>
                 </div>
                 {% endfor %}
@@ -162,14 +162,14 @@
             <div class="cards-list" id="complete">
                 {% for card in complete_cards %}
                 <div class="card-item card-complete" data-card-id="{{ card.id }}" draggable="true">
-                    <div class="card-content" onclick="window.location.href='{{ url_for('view_card', card_id=card.id) }}'">
+                    <div class="card-content" data-href="{{ url_for('view_card', card_id=card.id) }}">
                         <h3>{{ card.title }}</h3>
                         {% if card.completed_at %}
                         <div class="card-completed">✓ {{ card.completed_at.strftime('%b %d') }}</div>
                         {% endif %}
                     </div>
                     <div class="card-quick-actions">
-                        <button onclick="moveCard({{ card.id }}, 'in_progress'); event.stopPropagation();" class="btn-icon" title="Move to In Progress">←</button>
+                        <button class="btn-icon move-btn" data-move-to="in_progress" title="Move to In Progress">←</button>
                     </div>
                 </div>
                 {% endfor %}

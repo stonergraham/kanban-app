@@ -477,6 +477,7 @@ body {
     margin: 0.5rem 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -915,6 +916,13 @@ body {
 }
 
 /* Checklist Styles */
+/* Checklist indent levels */
+.checklist-level-0 { margin-left: 0; }
+.checklist-level-1 { margin-left: 20px; }
+.checklist-level-2 { margin-left: 40px; }
+.checklist-level-3 { margin-left: 60px; }
+.checklist-level-4 { margin-left: 80px; }
+
 .checklist-items {
     display: flex;
     flex-direction: column;

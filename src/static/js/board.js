@@ -41,6 +41,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Set up card content click-to-navigate
+    document.querySelectorAll('.card-content[data-href]').forEach(el => {
+        el.addEventListener('click', function() {
+            window.location.href = this.dataset.href;
+        });
+    });
+
+    // Set up move buttons
+    document.querySelectorAll('.move-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const cardEl = this.closest('[data-card-id]');
+            moveCard(cardEl.dataset.cardId, this.dataset.moveTo);
+        });
+    });
+
     // Set up drag and drop
     const cards = document.querySelectorAll('.card-item[draggable="true"]');
     const columns = document.querySelectorAll('.cards-list');
