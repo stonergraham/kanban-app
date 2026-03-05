@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Archived Cards - {{ board.name }} - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="board-container">
+    <div class="board-header">
+        <div class="board-title-section">
+            <h1>Archived Cards - {{ board.name }}</h1>
+        </div>
+        <div class="board-actions">
+            <a href="{{ url_for('view_board', board_id=board.id) }}" class="btn btn-secondary btn-sm">Back to Board</a>
+        </div>
+    </div>
+    
+    <div class="archived-cards-list">
+        {% if archived_cards %}
+            {% for card in archived_cards %}
+            <div class="archived-card-item">
+                <div class="archived-card-content">
+                    <h3>{{ card.title }}</h3>
+                    {% if card.description %}
+                    <p class="card-description">{{ card.description }}</p>
+                    {% endif %}
+                    <div class="archived-card-meta">
+                        <span>Archived: {{ card.archived_at.strftime('%b %d, %Y at %I:%M %p') }}</span>
+                    </div>
+                </div>
+                <div class="archived-card-actions">
+                    <a href="{{ url_for('view_card', card_id=card.id) }}" class="btn btn-secondary btn-sm">View</a>
+                    <form method="POST" action="{{ url_for('unarchive_card', card_id=card.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-primary btn-sm">Restore</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <p>No archived cards</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

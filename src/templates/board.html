@@ -4,22 +4,23 @@
 
 {% block content %}
 <div class="board-container">
-    <div class="board-header">
-        <div class="board-title-section">
-            <h1>{{ board.name }}</h1>
-            {% if board.description %}
-            <p class="board-description">{{ board.description }}</p>
-            {% endif %}
-        </div>
-        <div class="board-actions">
-            {% if is_owner and not board.is_parking_lot %}
-            <form method="POST" action="{{ url_for('delete_board', board_id=board.id) }}" 
-                  onsubmit="return confirm('Are you sure you want to delete this board?');" style="display: inline;">
-                <button type="submit" class="btn btn-danger btn-sm">Delete Board</button>
-            </form>
-            {% endif %}
-            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">Back to Dashboard</a>
-        </div>
+    <div class="board-title-section">
+        <h1>{{ board.name }}</h1>
+        {% if board.description %}
+        <p class="board-description">{{ board.description }}</p>
+        {% endif %}
+    </div>
+    <div class="board-actions">
+        {% if not board.is_parking_lot %}
+        <a href="{{ url_for('view_archived_cards', board_id=board.id) }}" class="btn btn-secondary btn-sm">View Archived</a>
+        {% endif %}
+        {% if is_owner and not board.is_parking_lot %}
+        <form method="POST" action="{{ url_for('delete_board', board_id=board.id) }}" 
+              onsubmit="return confirm('Are you sure you want to delete this board?');" style="display: inline;">
+            <button type="submit" class="btn btn-danger btn-sm">Delete Board</button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">Back to Dashboard</a>
     </div>
     
     {% if board.is_parking_lot %}
