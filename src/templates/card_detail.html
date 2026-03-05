@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ card.title }} - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="card-detail-container">
+    <div class="card-detail-header">
+        <h1>{{ card.title }}</h1>
+        <div class="card-detail-actions">
+            <a href="{{ url_for('view_board', board_id=board.id) }}" class="btn btn-secondary btn-sm">Back to Board</a>
+        </div>
+    </div>
+    
+    <div class="card-detail-content">
+        <!-- Edit Form -->
+        <form method="POST" action="{{ url_for('edit_card', card_id=card.id) }}" class="card-edit-form">
+            <div class="form-row">
+                <div class="form-group flex-2">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" value="{{ card.title }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="priority">Priority</label>
+                    <select id="priority" name="priority">
+                        <option value="low" {% if card.priority == 'low' %}selected{% endif %}>Low</option>
+                        <option value="medium" {% if card.priority == 'medium' %}selected{% endif %}>Medium</option>
+                        <option value="high" {% if card.priority == 'high' %}selected{% endif %}>High</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="5">{{ card.description or '' }}</textarea>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="time_estimate">Time Estimate (hours)</label>
+                    <input type="number" id="time_estimate" name="time_estimate" 
+                           value="{{ card.time_estimate }}" step="0.5" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="time_actual">Actual Time (hours)</label>
+                    <input type="number" id="time_actual" name="time_actual" 
+                           value="{{ card.time_actual }}" step="0.5" min="0">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="tags">Tags (comma-separated)</label>
+                <input type="text" id="tags" name="tags" value="{{ card.tags or '' }}" 
+                       placeholder="bug, feature, urgent">
+            </div>
+            
+            <div class="card-metadata">
+                <h3>Card Information</h3>
+                <div class="metadata-grid">
+                    <div class="metadata-item">
+                        <strong>Created:</strong> {{ card.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                    </div>
+                    <div class="metadata-item">
+                        <strong>Creator:</strong> {{ card.creator.username }}
+                    </div>
+                    <div class="metadata-item">
+                        <strong>Column:</strong> {{ card.column.replace('_', ' ').title() }}
+                    </div>
+                    <div class="metadata-item">
+                        <strong>Last Moved:</strong> {{ card.last_moved_at.strftime('%b %d, %Y at %I:%M %p') }}
+                    </div>
+                    {% if card.in_progress_at %}
+                    <div class="metadata-item">
+                        <strong>Started:</strong> {{ card.in_progress_at.strftime('%b %d, %Y at %I:%M %p') }}
+                    </div>
+                    {% endif %}
+                    {% if card.completed_at %}
+                    <div class="metadata-item">
+                        <strong>Completed:</strong> {{ card.completed_at.strftime('%b %d, %Y at %I:%M %p') }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <form method="POST" action="{{ url_for('delete_card', card_id=card.id) }}" 
+                      onsubmit="return confirm('Are you sure you want to delete this card?');" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete Card</button>
+                </form>
+            </div>
+        </form>
+        
+        <!-- Future: Checklist and Comments will go here in Phase 3C -->
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}{{ board.name }} - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="board-container">
+    <div class="board-header">
+        <div class="board-title-section">
+            <h1>{{ board.name }}</h1>
+            {% if board.description %}
+            <p class="board-description">{{ board.description }}</p>
+            {% endif %}
+        </div>
+        <div class="board-actions">
+            {% if is_owner and not board.is_parking_lot %}
+            <form method="POST" action="{{ url_for('delete_board', board_id=board.id) }}" 
+                  onsubmit="return confirm('Are you sure you want to delete this board?');" style="display: inline;">
+                <button type="submit" class="btn btn-danger btn-sm">Delete Board</button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">Back to Dashboard</a>
+        </div>
+    </div>
+    
+    {% if board.is_parking_lot %}
+    <!-- Parking Lot View (Single Column) -->
+    <div class="parking-lot-view">
+        <div class="parking-lot-header">
+            <h2>Backlog Items</h2>
+            <button class="btn btn-primary btn-sm" onclick="showCreateCardModal('parking_lot')">+ Add Item</button>
+        </div>
+        
+        <div class="cards-list" id="parking_lot">
+            {% for card in parking_lot_cards %}
+            <div class="card-item" data-card-id="{{ card.id }}">
+                <div class="card-content">
+                    <h3>{{ card.title }}</h3>
+                    {% if card.description %}
+                    <p class="card-description">{{ card.description }}</p>
+                    {% endif %}
+                    <div class="card-meta">
+                        {% if card.tags %}
+                        <div class="card-tags">
+                            {% for tag in card.get_tags_list() %}
+                            <span class="tag">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <span class="card-date">{{ card.created_at.strftime('%b %d, %Y') }}</span>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <a href="{{ url_for('view_card', card_id=card.id) }}" class="btn btn-secondary btn-sm">View</a>
+                </div>
+            </div>
+            {% endfor %}
+            
+            {% if not parking_lot_cards %}
+            <div class="empty-column">
+                <p>No items in parking lot</p>
+                <p class="empty-hint">Click "+ Add Item" to create your first backlog item</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- Kanban Board View (Three Columns) -->
+    <div class="kanban-board">
+        <!-- Assigned Column -->
+        <div class="kanban-column">
+            <div class="column-header">
+                <h2>Assigned</h2>
+                <span class="card-count">{{ assigned_cards|length }}</span>
+            </div>
+            <button class="btn btn-primary btn-sm btn-add-card" onclick="showCreateCardModal('assigned')">+ Add Card</button>
+            
+            <div class="cards-list" id="assigned">
+                {% for card in assigned_cards %}
+                <div class="card-item" data-card-id="{{ card.id }}" draggable="true">
+                    <div class="card-content" onclick="window.location.href='{{ url_for('view_card', card_id=card.id) }}'">
+                        <h3>{{ card.title }}</h3>
+                        {% if card.priority != 'medium' %}
+                        <span class="priority-badge priority-{{ card.priority }}">{{ card.priority }}</span>
+                        {% endif %}
+                        {% if card.tags %}
+                        <div class="card-tags">
+                            {% for tag in card.get_tags_list() %}
+                            <span class="tag tag-sm">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if card.time_estimate > 0 %}
+                        <div class="card-time">⏱️ {{ card.time_estimate }}h</div>
+                        {% endif %}
+                    </div>
+                    <div class="card-quick-actions">
+                        <button onclick="moveCard({{ card.id }}, 'in_progress'); event.stopPropagation();" class="btn-icon" title="Move to In Progress">→</button>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not assigned_cards %}
+                <div class="empty-column">
+                    <p>No cards assigned</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- In Progress Column -->
+        <div class="kanban-column column-in-progress">
+            <div class="column-header">
+                <h2>In Progress</h2>
+                <span class="card-count">{{ in_progress_cards|length }}</span>
+            </div>
+            <button class="btn btn-primary btn-sm btn-add-card" onclick="showCreateCardModal('in_progress')">+ Add Card</button>
+            
+            <div class="cards-list" id="in_progress">
+                {% for card in in_progress_cards %}
+                <div class="card-item" data-card-id="{{ card.id }}" draggable="true">
+                    <div class="card-content" onclick="window.location.href='{{ url_for('view_card', card_id=card.id) }}'">
+                        <h3>{{ card.title }}</h3>
+                        {% if card.priority != 'medium' %}
+                        <span class="priority-badge priority-{{ card.priority }}">{{ card.priority }}</span>
+                        {% endif %}
+                        {% if card.tags %}
+                        <div class="card-tags">
+                            {% for tag in card.get_tags_list() %}
+                            <span class="tag tag-sm">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if card.time_estimate > 0 %}
+                        <div class="card-time">⏱️ {{ card.time_estimate }}h / {{ card.time_actual }}h</div>
+                        {% endif %}
+                    </div>
+                    <div class="card-quick-actions">
+                        <button onclick="moveCard({{ card.id }}, 'assigned'); event.stopPropagation();" class="btn-icon" title="Move to Assigned">←</button>
+                        <button onclick="moveCard({{ card.id }}, 'complete'); event.stopPropagation();" class="btn-icon" title="Move to Complete">→</button>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not in_progress_cards %}
+                <div class="empty-column">
+                    <p>No cards in progress</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Complete Column -->
+        <div class="kanban-column column-complete">
+            <div class="column-header">
+                <h2>Complete</h2>
+                <span class="card-count">{{ complete_cards|length }}</span>
+            </div>
+            <button class="btn btn-primary btn-sm btn-add-card" onclick="showCreateCardModal('complete')">+ Add Card</button>
+            
+            <div class="cards-list" id="complete">
+                {% for card in complete_cards %}
+                <div class="card-item card-complete" data-card-id="{{ card.id }}" draggable="true">
+                    <div class="card-content" onclick="window.location.href='{{ url_for('view_card', card_id=card.id) }}'">
+                        <h3>{{ card.title }}</h3>
+                        {% if card.completed_at %}
+                        <div class="card-completed">✓ {{ card.completed_at.strftime('%b %d') }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="card-quick-actions">
+                        <button onclick="moveCard({{ card.id }}, 'in_progress'); event.stopPropagation();" class="btn-icon" title="Move to In Progress">←</button>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not complete_cards %}
+                <div class="empty-column">
+                    <p>No completed cards</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Create Card Modal -->
+<div id="createCardModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create New Card</h2>
+            <button class="modal-close" onclick="closeCreateCardModal()">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('create_card', board_id=board.id) }}">
+            <input type="hidden" name="column" id="cardColumn" value="assigned">
+            
+            <div class="form-group">
+                <label for="cardTitle">Title *</label>
+                <input type="text" id="cardTitle" name="title" required autofocus>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateCardModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Card</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/board.js') }}"></script>
+{% endblock %}

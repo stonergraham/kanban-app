@@ -31,8 +31,8 @@ class User(UserMixin, db.Model):
     comments = db.relationship('Comment', backref='author', lazy=True,
                               foreign_keys='Comment.author_id')
     
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+    def set_password(self, password, method='pbkdf2:sha256'):
+        self.password_hash = generate_password_hash(password, method=method)
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
