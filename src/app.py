@@ -1,16 +1,29 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash
-from datetime import datetime, timedelta
-import os
+from datetime import datetime, timedelta, timezone
 
 from config import Config
 from models import db, User, Board, Card, ActivityLog, ChecklistItem, Comment, board_members
 
-app = Flask(__name__, 
+app = Flask(__name__,
             static_folder='static',
             template_folder='templates')
 app.config.from_object(Config)
+
+# Security headers
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    if app.config.get('FLASK_ENV') == 'production':
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline';"
+        )
+    return response
 
 # Initialize extensions
 db.init_app(app)
@@ -32,7 +45,9 @@ with app.app_context():
         admin.set_password('admin123')
         db.session.add(admin)
         db.session.commit()
-        print("✓ Created default admin user (username: admin, password: admin123)")
+        print("⚠️  SECURITY WARNING: Default admin user created!")
+        print("⚠️  Username: admin | Password: admin123")
+        print("⚠️  CHANGE THIS PASSWORD IMMEDIATELY!")
 
 # ============================================================================
 # AUTHENTICATION ROUTES
@@ -117,6 +132,34 @@ def register():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/account/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not current_user.check_password(current_password):
+            flash('Current password is incorrect', 'error')
+            return render_template('change_password.html')
+
+        if new_password != confirm_password:
+            flash('New passwords do not match', 'error')
+            return render_template('change_password.html')
+
+        if len(new_password) < 8:
+            flash('Password must be at least 8 characters', 'error')
+            return render_template('change_password.html')
+
+        current_user.set_password(new_password)
+        db.session.commit()
+
+        flash('Password changed successfully!', 'success')
+        return redirect(url_for('dashboard'))
+
+    return render_template('change_password.html')
 
 # ============================================================================
 # DASHBOARD
@@ -364,13 +407,13 @@ def move_card(card_id):
     
     old_column = card.column
     card.column = new_column
-    card.last_moved_at = datetime.utcnow()
+    card.last_moved_at = datetime.now(timezone.utc)
     
     # Update timestamps based on column
     if new_column == 'in_progress' and not card.in_progress_at:
-        card.in_progress_at = datetime.utcnow()
+        card.in_progress_at = datetime.now(timezone.utc)
     elif new_column == 'complete' and not card.completed_at:
-        card.completed_at = datetime.utcnow()
+        card.completed_at = datetime.now(timezone.utc)
     
     # Get next position in new column
     max_position = db.session.query(db.func.max(Card.position)).filter_by(
@@ -533,7 +576,6 @@ def assign_card(card_id):
         
         # Verify assignee has access to board
         if assignee and (assignee.id == board.owner_id or assignee in board.members):
-            old_assignee = card.assignee.username if card.assignee else 'Unassigned'
             card.assignee_id = assignee_id
             
             # Log activity
@@ -677,8 +719,8 @@ def calculate_board_metrics(board_id):
     weekly_created = {}
     weekly_completed = {}
     for i in range(4, -1, -1):
-        week_start = datetime.utcnow() - timedelta(weeks=i + 1)
-        week_end = datetime.utcnow() - timedelta(weeks=i)
+        week_start = datetime.now(timezone.utc) - timedelta(weeks=i + 1)
+        week_end = datetime.now(timezone.utc) - timedelta(weeks=i)
         label = week_start.strftime('%b %d')
         weekly_created[label] = len([c for c in all_cards if week_start <= c.created_at < week_end])
         weekly_completed[label] = len([
@@ -764,7 +806,7 @@ def calculate_user_metrics(user_id, board_ids):
     avg_completion_time = round(sum(completion_times) / len(completion_times), 1) if completion_times else 0
 
     # Recent activity (last 7 days)
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
     cards_this_week = len([c for c in all_cards if c.created_at >= seven_days_ago])
     completed_this_week = len([c for c in completed_cards if c.completed_at and c.completed_at >= seven_days_ago])
 
@@ -778,7 +820,7 @@ def calculate_user_metrics(user_id, board_ids):
     trend_labels = []
     trend_data = []
     for i in range(6, -1, -1):
-        date = datetime.utcnow() - timedelta(days=i)
+        date = datetime.now(timezone.utc) - timedelta(days=i)
         trend_labels.append(date.strftime('%b %d'))
         day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
@@ -1016,7 +1058,7 @@ def edit_comment(comment_id):
         return jsonify({'error': 'Text is required'}), 400
     
     comment.text = text
-    comment.edited_at = datetime.utcnow()
+    comment.edited_at = datetime.now(timezone.utc)
     db.session.commit()
     
     return jsonify({'success': True})
@@ -1053,7 +1095,7 @@ def archive_card(card_id):
         return jsonify({'error': 'Access denied'}), 403
 
     card.archived = True
-    card.archived_at = datetime.utcnow()
+    card.archived_at = datetime.now(timezone.utc)
     db.session.commit()
     
     flash(f'Card "{card.title}" archived', 'success')
