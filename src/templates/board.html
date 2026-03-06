@@ -13,12 +13,10 @@
     <div class="board-actions">
         {% if not board.is_parking_lot %}
         <a href="{{ url_for('view_archived_cards', board_id=board.id) }}" class="btn btn-secondary btn-sm">View Archived</a>
+        <a href="{{ url_for('view_activity', board_id=board.id) }}" class="btn btn-secondary btn-sm">Activity</a>
+        {% if is_owner %}
+        <a href="{{ url_for('board_settings', board_id=board.id) }}" class="btn btn-secondary btn-sm">Settings</a>
         {% endif %}
-        {% if is_owner and not board.is_parking_lot %}
-        <form method="POST" action="{{ url_for('delete_board', board_id=board.id) }}" 
-              onsubmit="return confirm('Are you sure you want to delete this board?');" style="display: inline;">
-            <button type="submit" class="btn btn-danger btn-sm">Delete Board</button>
-        </form>
         {% endif %}
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">Back to Dashboard</a>
     </div>
@@ -84,6 +82,13 @@
                         {% if card.priority != 'medium' %}
                         <span class="priority-badge priority-{{ card.priority }}">{{ card.priority }}</span>
                         {% endif %}
+                        {% if card.assignee %}
+                        <div class="card-assignee">
+                            <span class="assignee-avatar" title="{{ card.assignee.username }}">
+                                {{ card.assignee.username[0].upper() }}
+                            </span>
+                        </div>
+                        {% endif %}
                         {% if card.tags %}
                         <div class="card-tags">
                             {% for tag in card.get_tags_list() %}
@@ -125,6 +130,13 @@
                         {% if card.priority != 'medium' %}
                         <span class="priority-badge priority-{{ card.priority }}">{{ card.priority }}</span>
                         {% endif %}
+                        {% if card.assignee %}
+                        <div class="card-assignee">
+                            <span class="assignee-avatar" title="{{ card.assignee.username }}">
+                                {{ card.assignee.username[0].upper() }}
+                            </span>
+                        </div>
+                        {% endif %}
                         {% if card.tags %}
                         <div class="card-tags">
                             {% for tag in card.get_tags_list() %}
@@ -164,6 +176,13 @@
                 <div class="card-item card-complete" data-card-id="{{ card.id }}" draggable="true">
                     <div class="card-content" data-href="{{ url_for('view_card', card_id=card.id) }}">
                         <h3>{{ card.title }}</h3>
+                        {% if card.assignee %}
+                        <div class="card-assignee">
+                            <span class="assignee-avatar" title="{{ card.assignee.username }}">
+                                {{ card.assignee.username[0].upper() }}
+                            </span>
+                        </div>
+                        {% endif %}
                         {% if card.completed_at %}
                         <div class="card-completed">✓ {{ card.completed_at.strftime('%b %d') }}</div>
                         {% endif %}

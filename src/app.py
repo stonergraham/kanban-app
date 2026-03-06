@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 
 from config import Config
-from models import db, User, Board, Card, ActivityLog, ChecklistItem, Comment
+from models import db, User, Board, Card, ActivityLog, ChecklistItem, Comment, board_members
 
 app = Flask(__name__, 
             static_folder='static',
@@ -94,7 +94,8 @@ def register():
         user = User(username=username, email=email)
         user.set_password(password)
         db.session.add(user)
-        
+        db.session.flush()  # Assigns user.id before it's used below
+
         # Create personal parking lot
         parking_lot = Board(
             name=f"{username}'s Parking Lot",
@@ -265,7 +266,17 @@ def create_card(board_id):
     )
     db.session.add(card)
     db.session.commit()
-    
+
+    # Log activity
+    activity = ActivityLog(
+        board_id=board_id,
+        user_id=current_user.id,
+        action='created_card',
+        details=f'Created card "{title}" in {column.replace("_", " ")}'
+    )
+    db.session.add(activity)
+    db.session.commit()
+
     flash(f'Card "{title}" created successfully!', 'success')
     return redirect(url_for('view_board', board_id=board_id))
 
@@ -368,12 +379,226 @@ def move_card(card_id):
     card.position = max_position + 1
     
     db.session.commit()
-    
+
+    # Log activity
+    activity = ActivityLog(
+        board_id=board.id,
+        user_id=current_user.id,
+        action='moved_card',
+        details=f'Moved "{card.title}" from {old_column.replace("_", " ")} to {new_column.replace("_", " ")}'
+    )
+    db.session.add(activity)
+    db.session.commit()
+
     return jsonify({
         'success': True,
         'card_id': card.id,
         'old_column': old_column,
         'new_column': new_column
+    })
+
+# ============================================================================
+# BOARD SHARING & MEMBERS
+# ============================================================================
+
+@app.route('/board/<int:board_id>/settings')
+@login_required
+def board_settings(board_id):
+    board = db.session.get(Board, board_id) or abort(404)
+    
+    # Only owner can access settings
+    if board.owner_id != current_user.id:
+        flash('Only the board owner can access settings', 'error')
+        return redirect(url_for('view_board', board_id=board_id))
+    
+    if board.is_parking_lot:
+        flash('Cannot share parking lot', 'error')
+        return redirect(url_for('view_board', board_id=board_id))
+    
+    # Get all members with their roles
+    members_data = []
+    for member in board.members:
+        # Get role from association table
+        member_assoc = db.session.query(board_members).filter_by(
+            user_id=member.id,
+            board_id=board_id
+        ).first()
+        
+        role = member_assoc.role if member_assoc else 'member'
+        members_data.append({
+            'user': member,
+            'role': role
+        })
+    
+    return render_template('board_settings.html', board=board, members_data=members_data)
+
+@app.route('/board/<int:board_id>/members/add', methods=['POST'])
+@login_required
+def add_board_member(board_id):
+    board = db.session.get(Board, board_id) or abort(404)
+    
+    # Only owner can add members
+    if board.owner_id != current_user.id:
+        flash('Only the board owner can add members', 'error')
+        return redirect(url_for('board_settings', board_id=board_id))
+    
+    username = request.form.get('username')
+    if not username:
+        flash('Username is required', 'error')
+        return redirect(url_for('board_settings', board_id=board_id))
+    
+    # Find user
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        flash(f'User "{username}" not found', 'error')
+        return redirect(url_for('board_settings', board_id=board_id))
+    
+    # Check if already a member
+    if user in board.members or user.id == board.owner_id:
+        flash(f'{username} is already a member of this board', 'error')
+        return redirect(url_for('board_settings', board_id=board_id))
+    
+    # Add member
+    board.members.append(user)
+    
+    # Log activity
+    activity = ActivityLog(
+        board_id=board_id,
+        user_id=current_user.id,
+        action='added_member',
+        details=f'Added {username} to the board'
+    )
+    db.session.add(activity)
+    
+    db.session.commit()
+    
+    flash(f'{username} added to board', 'success')
+    return redirect(url_for('board_settings', board_id=board_id))
+
+@app.route('/board/<int:board_id>/members/<int:user_id>/remove', methods=['POST'])
+@login_required
+def remove_board_member(board_id, user_id):
+    board = db.session.get(Board, board_id) or abort(404)
+
+    # Only owner can remove members
+    if board.owner_id != current_user.id:
+        flash('Only the board owner can remove members', 'error')
+        return redirect(url_for('board_settings', board_id=board_id))
+
+    user = db.session.get(User, user_id) or abort(404)
+    
+    # Can't remove owner
+    if user.id == board.owner_id:
+        flash('Cannot remove board owner', 'error')
+        return redirect(url_for('board_settings', board_id=board_id))
+    
+    # Remove member
+    if user in board.members:
+        board.members.remove(user)
+        
+        # Log activity
+        activity = ActivityLog(
+            board_id=board_id,
+            user_id=current_user.id,
+            action='removed_member',
+            details=f'Removed {user.username} from the board'
+        )
+        db.session.add(activity)
+        
+        db.session.commit()
+        
+        flash(f'{user.username} removed from board', 'success')
+    
+    return redirect(url_for('board_settings', board_id=board_id))
+
+# ============================================================================
+# CARD ASSIGNMENT
+# ============================================================================
+
+@app.route('/card/<int:card_id>/assign', methods=['POST'])
+@login_required
+def assign_card(card_id):
+    card = db.session.get(Card, card_id) or abort(404)
+    board = card.board
+    
+    # Check access
+    if board.owner_id != current_user.id and current_user not in board.members:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    assignee_id = request.form.get('assignee_id')
+    
+    if assignee_id:
+        assignee_id = int(assignee_id)
+        assignee = db.session.get(User, assignee_id)
+        
+        # Verify assignee has access to board
+        if assignee and (assignee.id == board.owner_id or assignee in board.members):
+            old_assignee = card.assignee.username if card.assignee else 'Unassigned'
+            card.assignee_id = assignee_id
+            
+            # Log activity
+            activity = ActivityLog(
+                board_id=board.id,
+                user_id=current_user.id,
+                action='assigned_card',
+                details=f'Assigned "{card.title}" to {assignee.username}'
+            )
+            db.session.add(activity)
+            
+            db.session.commit()
+            
+            flash(f'Card assigned to {assignee.username}', 'success')
+        else:
+            flash('User does not have access to this board', 'error')
+    else:
+        # Unassign
+        card.assignee_id = None
+        db.session.commit()
+        flash('Card unassigned', 'success')
+    
+    return redirect(url_for('view_card', card_id=card_id))
+
+# ============================================================================
+# ACTIVITY LOG
+# ============================================================================
+
+@app.route('/board/<int:board_id>/activity')
+@login_required
+def view_activity(board_id):
+    board = db.session.get(Board, board_id) or abort(404)
+    
+    # Check access
+    if board.owner_id != current_user.id and current_user not in board.members:
+        flash('You do not have access to this board', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Get recent activity (last 50 items)
+    activities = ActivityLog.query.filter_by(board_id=board_id).order_by(
+        ActivityLog.timestamp.desc()
+    ).limit(50).all()
+    
+    return render_template('activity_log.html', board=board, activities=activities)
+
+# ============================================================================
+# USER SEARCH API
+# ============================================================================
+
+@app.route('/api/users/search')
+@login_required
+def search_users():
+    query = request.args.get('q', '').strip()
+    
+    if len(query) < 2:
+        return jsonify({'users': []})
+    
+    # Search users by username (exclude current user)
+    users = User.query.filter(
+        User.username.ilike(f'%{query}%'),
+        User.id != current_user.id
+    ).limit(10).all()
+    
+    return jsonify({
+        'users': [{'id': u.id, 'username': u.username} for u in users]
     })
 
 # ============================================================================

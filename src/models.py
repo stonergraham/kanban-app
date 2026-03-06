@@ -97,6 +97,8 @@ class Card(db.Model):
     archived_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
+    assignee = db.relationship('User', backref='assigned_cards', lazy=True,
+                              foreign_keys=[assignee_id])
     checklist_items = db.relationship('ChecklistItem', backref='card', lazy=True,
                                      cascade='all, delete-orphan',
                                      order_by='ChecklistItem.position')

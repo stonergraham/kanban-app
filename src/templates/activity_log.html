@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Activity - {{ board.name }} - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="activity-container">
+    <div class="activity-header">
+        <h1>Activity Log</h1>
+        <h2>{{ board.name }}</h2>
+        <a href="{{ url_for('view_board', board_id=board.id) }}" class="btn btn-secondary btn-sm">Back to Board</a>
+    </div>
+
+    <div class="activity-list">
+        {% for activity in activities %}
+        <div class="activity-item">
+            <div class="activity-icon activity-{{ activity.action }}"></div>
+            <div class="activity-content">
+                <div class="activity-main">
+                    <strong>{{ activity.user.username }}</strong>
+                    <span class="activity-details">{{ activity.details }}</span>
+                </div>
+                <div class="activity-time">
+                    {{ activity.timestamp.strftime('%b %d, %Y at %I:%M %p') }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not activities %}
+        <div class="empty-hint">
+            <p>No activity recorded yet.</p>
+            <p>Activity is logged when cards are created, moved, or members are added.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

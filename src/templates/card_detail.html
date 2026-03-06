@@ -102,6 +102,35 @@
             </form>
         </div>
         
+        <!-- Assignee Section -->
+        {% if not board.is_parking_lot %}
+        <div class="card-section">
+            <h3>Assignee</h3>
+            <form method="POST" action="{{ url_for('assign_card', card_id=card.id) }}" class="assignee-form">
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <select name="assignee_id">
+                            <option value="">Unassigned</option>
+                            <option value="{{ board.owner.id }}"
+                                {% if card.assignee_id == board.owner.id %}selected{% endif %}>
+                                {{ board.owner.username }} (Owner)
+                            </option>
+                            {% for member in board.members %}
+                            <option value="{{ member.id }}"
+                                {% if card.assignee_id == member.id %}selected{% endif %}>
+                                {{ member.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group form-group-action">
+                        <button type="submit" class="btn btn-primary btn-sm">Assign</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
         <!-- Checklist Section -->
         <div class="card-section">
             <div class="section-header">

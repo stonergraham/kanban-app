@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - {{ board.name }} - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-header">
+        <h1>Board Settings</h1>
+        <h2>{{ board.name }}</h2>
+        <a href="{{ url_for('view_board', board_id=board.id) }}" class="btn btn-secondary btn-sm">Back to Board</a>
+    </div>
+
+    <!-- Members Section -->
+    <div class="settings-section">
+        <h3>Members</h3>
+
+        <!-- Add Member Form -->
+        <form method="POST" action="{{ url_for('add_board_member', board_id=board.id) }}" class="add-member-form">
+            <div class="form-row">
+                <div class="form-group flex-2">
+                    <label for="username">Add Member by Username</label>
+                    <input type="text" id="username" name="username" placeholder="Enter username..." required>
+                </div>
+                <div class="form-group form-group-action">
+                    <button type="submit" class="btn btn-primary">Add Member</button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Current Members List -->
+        <div class="members-list">
+            <!-- Owner -->
+            <div class="member-item member-owner">
+                <div class="member-info">
+                    <span class="member-name">{{ board.owner.username }}</span>
+                    <span class="member-role role-owner">Owner</span>
+                </div>
+            </div>
+
+            <!-- Other Members -->
+            {% for item in members_data %}
+            <div class="member-item">
+                <div class="member-info">
+                    <span class="member-name">{{ item.user.username }}</span>
+                    <span class="member-role role-member">Member</span>
+                </div>
+                <div class="member-actions">
+                    <form method="POST" action="{{ url_for('remove_board_member', board_id=board.id, user_id=item.user.id) }}"
+                          onsubmit="return confirm('Remove {{ item.user.username }} from this board?');"
+                          style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if not members_data %}
+            <p class="empty-hint">No additional members yet. Add members above to share this board.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="settings-section settings-danger">
+        <h3>Danger Zone</h3>
+        <div class="danger-action">
+            <div>
+                <strong>Delete this board</strong>
+                <p>Once deleted, this board and all its cards cannot be recovered.</p>
+            </div>
+            <form method="POST" action="{{ url_for('delete_board', board_id=board.id) }}"
+                  onsubmit="return confirm('Are you sure you want to delete this board? This cannot be undone.');">
+                <button type="submit" class="btn btn-danger">Delete Board</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

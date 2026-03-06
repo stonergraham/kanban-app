@@ -73,6 +73,19 @@
                 <div class="board-card shared-board-card">
                     <h3>{{ board.name }}</h3>
                     <p>{{ board.description or 'No description' }}</p>
+                    <div class="board-members-preview">
+                        <span class="member-avatar-sm" title="{{ board.owner.username }}">
+                            {{ board.owner.username[0].upper() }}
+                        </span>
+                        {% for member in board.members[:3] %}
+                        <span class="member-avatar-sm member-avatar-{{ loop.index % 5 }}" title="{{ member.username }}">
+                            {{ member.username[0].upper() }}
+                        </span>
+                        {% endfor %}
+                        {% if board.members|length > 3 %}
+                        <span class="member-count">+{{ board.members|length - 3 }}</span>
+                        {% endif %}
+                    </div>
                     <small class="board-owner">Owner: {{ board.owner.username }}</small>
                     <a href="{{ url_for('view_board', board_id=board.id) }}" class="btn btn-primary btn-sm">Open</a>
                 </div>
