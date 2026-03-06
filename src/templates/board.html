@@ -12,11 +12,12 @@
     </div>
     <div class="board-actions">
         {% if not board.is_parking_lot %}
-        <a href="{{ url_for('view_archived_cards', board_id=board.id) }}" class="btn btn-secondary btn-sm">View Archived</a>
+        <a href="{{ url_for('board_metrics', board_id=board.id) }}" class="btn btn-secondary btn-sm">📊 Metrics</a>
         <a href="{{ url_for('view_activity', board_id=board.id) }}" class="btn btn-secondary btn-sm">Activity</a>
         {% if is_owner %}
         <a href="{{ url_for('board_settings', board_id=board.id) }}" class="btn btn-secondary btn-sm">Settings</a>
         {% endif %}
+        <a href="{{ url_for('view_archived_cards', board_id=board.id) }}" class="btn btn-secondary btn-sm">View Archived</a>
         {% endif %}
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">Back to Dashboard</a>
     </div>

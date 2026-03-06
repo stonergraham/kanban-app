@@ -1,7 +1,7 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 from config import Config
@@ -600,6 +600,222 @@ def search_users():
     return jsonify({
         'users': [{'id': u.id, 'username': u.username} for u in users]
     })
+
+# ============================================================================
+# METRICS & ANALYTICS
+# ============================================================================
+
+@app.route('/dashboard/metrics')
+@login_required
+def dashboard_metrics():
+    user_boards = Board.query.filter(
+        db.or_(
+            Board.owner_id == current_user.id,
+            Board.members.any(id=current_user.id)
+        ),
+        Board.is_parking_lot == False,
+        Board.archived == False
+    ).all()
+
+    board_ids = [b.id for b in user_boards]
+    metrics = calculate_user_metrics(current_user.id, board_ids)
+
+    return render_template('metrics.html', metrics=metrics)
+
+@app.route('/board/<int:board_id>/metrics')
+@login_required
+def board_metrics(board_id):
+    board = db.session.get(Board, board_id) or abort(404)
+
+    # Check access
+    if board.owner_id != current_user.id and current_user not in board.members:
+        flash('You do not have access to this board', 'error')
+        return redirect(url_for('dashboard'))
+
+    metrics = calculate_board_metrics(board_id)
+    return render_template('board_metrics.html', board=board, metrics=metrics)
+
+def calculate_board_metrics(board_id):
+    """Calculate metrics for a specific board"""
+    all_cards = Card.query.filter_by(board_id=board_id, archived=False).all()
+
+    # Basic counts
+    total_cards = len(all_cards)
+    assigned_count = len([c for c in all_cards if c.column == 'assigned'])
+    in_progress_count = len([c for c in all_cards if c.column == 'in_progress'])
+    complete_count = len([c for c in all_cards if c.column == 'complete'])
+    completion_rate = round((complete_count / total_cards * 100) if total_cards > 0 else 0, 1)
+
+    # Cards by assignee
+    assignee_distribution = {}
+    for card in all_cards:
+        name = card.assignee.username if card.assignee else 'Unassigned'
+        if name not in assignee_distribution:
+            assignee_distribution[name] = {'total': 0, 'complete': 0}
+        assignee_distribution[name]['total'] += 1
+        if card.column == 'complete':
+            assignee_distribution[name]['complete'] += 1
+
+    # Cards by priority
+    priority_counts = {
+        'high': len([c for c in all_cards if c.priority == 'high']),
+        'medium': len([c for c in all_cards if c.priority == 'medium']),
+        'low': len([c for c in all_cards if c.priority == 'low'])
+    }
+
+    # Time tracking
+    total_estimated = sum(c.time_estimate for c in all_cards if c.time_estimate > 0)
+    total_actual = sum(c.time_actual for c in all_cards if c.time_actual > 0)
+
+    completed_cards = [c for c in all_cards if c.column == 'complete']
+    completed_with_time = [c for c in completed_cards if c.time_actual > 0]
+    avg_time_per_card = round(
+        sum(c.time_actual for c in completed_with_time) / len(completed_with_time), 1
+    ) if completed_with_time else 0
+
+    # Activity by week (last 5 weeks)
+    weekly_created = {}
+    weekly_completed = {}
+    for i in range(4, -1, -1):
+        week_start = datetime.utcnow() - timedelta(weeks=i + 1)
+        week_end = datetime.utcnow() - timedelta(weeks=i)
+        label = week_start.strftime('%b %d')
+        weekly_created[label] = len([c for c in all_cards if week_start <= c.created_at < week_end])
+        weekly_completed[label] = len([
+            c for c in completed_cards if c.completed_at and week_start <= c.completed_at < week_end
+        ])
+
+    return {
+        'total_cards': total_cards,
+        'assigned_count': assigned_count,
+        'in_progress_count': in_progress_count,
+        'complete_count': complete_count,
+        'completion_rate': completion_rate,
+        'total_estimated': round(total_estimated, 1),
+        'total_actual': round(total_actual, 1),
+        'avg_time_per_card': avg_time_per_card,
+        'assignee_distribution': assignee_distribution,
+        'priority_counts': priority_counts,
+        'assignee_chart': {
+            'labels': list(assignee_distribution.keys()),
+            'data': [v['total'] for v in assignee_distribution.values()]
+        },
+        'priority_chart': {
+            'labels': ['High', 'Medium', 'Low'],
+            'data': [priority_counts['high'], priority_counts['medium'], priority_counts['low']]
+        },
+        'activity_chart': {
+            'labels': list(weekly_created.keys()),
+            'created': list(weekly_created.values()),
+            'completed': list(weekly_completed.values())
+        }
+    }
+
+def calculate_user_metrics(user_id, board_ids):
+    """Calculate comprehensive metrics for user's boards"""
+    all_cards = Card.query.filter(
+        Card.board_id.in_(board_ids),
+        Card.archived == False
+    ).all()
+
+    # Basic counts
+    total_cards = len(all_cards)
+    assigned_count = len([c for c in all_cards if c.column == 'assigned'])
+    in_progress_count = len([c for c in all_cards if c.column == 'in_progress'])
+    complete_count = len([c for c in all_cards if c.column == 'complete'])
+
+    # Cards assigned to current user
+    my_cards = [c for c in all_cards if c.assignee_id == user_id]
+    my_cards_count = len(my_cards)
+    my_complete = len([c for c in my_cards if c.column == 'complete'])
+
+    # Completion rate
+    completion_rate = round((complete_count / total_cards * 100) if total_cards > 0 else 0, 1)
+
+    # Time tracking metrics
+    cards_with_estimates = [c for c in all_cards if c.time_estimate > 0]
+    cards_with_actuals = [c for c in all_cards if c.time_actual > 0]
+
+    total_estimated = sum(c.time_estimate for c in cards_with_estimates)
+    total_actual = sum(c.time_actual for c in cards_with_actuals)
+
+    # Estimate accuracy (for completed cards with both estimate and actual)
+    completed_cards = [c for c in all_cards if c.column == 'complete']
+    accuracy_cards = [c for c in completed_cards if c.time_estimate > 0 and c.time_actual > 0]
+
+    if accuracy_cards:
+        accuracy_scores = []
+        for card in accuracy_cards:
+            ratio = card.time_actual / card.time_estimate
+            accuracy = 100 - abs((ratio - 1.0) * 100)
+            accuracy = max(0, min(100, accuracy))
+            accuracy_scores.append(accuracy)
+        avg_accuracy = round(sum(accuracy_scores) / len(accuracy_scores), 1)
+    else:
+        avg_accuracy = 0
+
+    # Average completion time
+    completion_times = []
+    for card in completed_cards:
+        if card.assigned_at and card.completed_at:
+            duration = card.completed_at - card.assigned_at
+            completion_times.append(duration.total_seconds() / 3600)
+
+    avg_completion_time = round(sum(completion_times) / len(completion_times), 1) if completion_times else 0
+
+    # Recent activity (last 7 days)
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    cards_this_week = len([c for c in all_cards if c.created_at >= seven_days_ago])
+    completed_this_week = len([c for c in completed_cards if c.completed_at and c.completed_at >= seven_days_ago])
+
+    # Chart data: Cards by column
+    column_data = {
+        'labels': ['Assigned', 'In Progress', 'Complete'],
+        'data': [assigned_count, in_progress_count, complete_count]
+    }
+
+    # Chart data: Completion trend (last 7 days)
+    trend_labels = []
+    trend_data = []
+    for i in range(6, -1, -1):
+        date = datetime.utcnow() - timedelta(days=i)
+        trend_labels.append(date.strftime('%b %d'))
+        day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        completed_on_day = len([
+            c for c in completed_cards
+            if c.completed_at and day_start <= c.completed_at < day_end
+        ])
+        trend_data.append(completed_on_day)
+
+    completion_trend = {'labels': trend_labels, 'data': trend_data}
+
+    # Chart data: Time estimate vs actual (last 10 completed cards with both)
+    estimate_comparison = {'labels': [], 'estimated': [], 'actual': []}
+    for card in accuracy_cards[:10]:
+        label = (card.title[:20] + '...') if len(card.title) > 20 else card.title
+        estimate_comparison['labels'].append(label)
+        estimate_comparison['estimated'].append(card.time_estimate)
+        estimate_comparison['actual'].append(card.time_actual)
+
+    return {
+        'total_cards': total_cards,
+        'assigned_count': assigned_count,
+        'in_progress_count': in_progress_count,
+        'complete_count': complete_count,
+        'my_cards_count': my_cards_count,
+        'my_complete': my_complete,
+        'completion_rate': completion_rate,
+        'total_estimated': round(total_estimated, 1),
+        'total_actual': round(total_actual, 1),
+        'avg_accuracy': avg_accuracy,
+        'avg_completion_time': avg_completion_time,
+        'cards_this_week': cards_this_week,
+        'completed_this_week': completed_this_week,
+        'column_data': column_data,
+        'completion_trend': completion_trend,
+        'estimate_comparison': estimate_comparison
+    }
 
 # ============================================================================
 # API ROUTES

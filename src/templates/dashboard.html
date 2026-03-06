@@ -7,21 +7,22 @@
     <div class="dashboard-header">
         <h1>Dashboard</h1>
         <div class="dashboard-actions">
+            <a href="{{ url_for('dashboard_metrics') }}" class="btn btn-secondary">📊 View Analytics</a>
             <a href="{{ url_for('create_board') }}" class="btn btn-primary">+ New Board</a>
         </div>
     </div>
-    
+
     <!-- Quick Stats -->
     <div class="dashboard-stats">
-        <div class="stat-card">
+        <div class="stat-card" onclick="window.location.href='{{ url_for('dashboard_metrics') }}'" style="cursor: pointer;">
             <div class="stat-value">{{ my_boards|length }}</div>
             <div class="stat-label">My Boards</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" onclick="window.location.href='{{ url_for('dashboard_metrics') }}'" style="cursor: pointer;">
             <div class="stat-value">{{ shared_boards|length }}</div>
             <div class="stat-label">Shared Boards</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" onclick="window.location.href='{{ url_for('dashboard_metrics') }}'" style="cursor: pointer;">
             <div class="stat-value">{{ total_cards }}</div>
             <div class="stat-label">Total Cards</div>
         </div>

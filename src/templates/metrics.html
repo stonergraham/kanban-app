@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="metrics-container">
+    <div class="metrics-header">
+        <h1>📊 Analytics & Insights</h1>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">Back to Dashboard</a>
+    </div>
+
+    <!-- Key Metrics Cards -->
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-icon">📝</div>
+            <div class="metric-value">{{ metrics.total_cards }}</div>
+            <div class="metric-label">Total Cards</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon">✅</div>
+            <div class="metric-value">{{ metrics.completion_rate }}%</div>
+            <div class="metric-label">Completion Rate</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon">⏱️</div>
+            <div class="metric-value">{{ metrics.avg_completion_time }}h</div>
+            <div class="metric-label">Avg. Completion Time</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon">🎯</div>
+            <div class="metric-value">{{ metrics.avg_accuracy }}%</div>
+            <div class="metric-label">Estimate Accuracy</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon">👤</div>
+            <div class="metric-value">{{ metrics.my_cards_count }}</div>
+            <div class="metric-label">Assigned to Me</div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon">📅</div>
+            <div class="metric-value">{{ metrics.completed_this_week }}</div>
+            <div class="metric-label">Completed This Week</div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-grid">
+        <!-- Column Distribution -->
+        <div class="chart-card">
+            <h3>Card Distribution</h3>
+            <canvas id="columnChart"></canvas>
+        </div>
+
+        <!-- Completion Trend -->
+        <div class="chart-card">
+            <h3>Completion Trend (Last 7 Days)</h3>
+            <canvas id="trendChart"></canvas>
+        </div>
+
+        <!-- Time Estimate Comparison -->
+        {% if metrics.estimate_comparison.labels %}
+        <div class="chart-card chart-card-wide">
+            <h3>Time Estimate vs Actual (Last 10 Completed)</h3>
+            <canvas id="estimateChart"></canvas>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Detailed Stats -->
+    <div class="stats-section">
+        <h2>Detailed Statistics</h2>
+
+        <div class="stats-grid">
+            <div class="stat-item">
+                <strong>Cards by Status</strong>
+                <ul class="stat-list">
+                    <li>Assigned: <span class="stat-value">{{ metrics.assigned_count }}</span></li>
+                    <li>In Progress: <span class="stat-value">{{ metrics.in_progress_count }}</span></li>
+                    <li>Complete: <span class="stat-value">{{ metrics.complete_count }}</span></li>
+                </ul>
+            </div>
+
+            <div class="stat-item">
+                <strong>My Cards</strong>
+                <ul class="stat-list">
+                    <li>Total Assigned: <span class="stat-value">{{ metrics.my_cards_count }}</span></li>
+                    <li>Completed: <span class="stat-value">{{ metrics.my_complete }}</span></li>
+                    <li>In Progress: <span class="stat-value">{{ metrics.my_cards_count - metrics.my_complete }}</span></li>
+                </ul>
+            </div>
+
+            <div class="stat-item">
+                <strong>Time Tracking</strong>
+                <ul class="stat-list">
+                    <li>Total Estimated: <span class="stat-value">{{ metrics.total_estimated }}h</span></li>
+                    <li>Total Actual: <span class="stat-value">{{ metrics.total_actual }}h</span></li>
+                    <li>Difference: <span class="stat-value">{{ (metrics.total_actual - metrics.total_estimated)|round(1) }}h</span></li>
+                </ul>
+            </div>
+
+            <div class="stat-item">
+                <strong>This Week</strong>
+                <ul class="stat-list">
+                    <li>Cards Created: <span class="stat-value">{{ metrics.cards_this_week }}</span></li>
+                    <li>Cards Completed: <span class="stat-value">{{ metrics.completed_this_week }}</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Column Distribution Chart
+const columnCtx = document.getElementById('columnChart');
+new Chart(columnCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ metrics.column_data.labels|tojson }},
+        datasets: [{
+            data: {{ metrics.column_data.data|tojson }},
+            backgroundColor: [
+                'rgba(59, 130, 246, 0.8)',
+                'rgba(245, 158, 11, 0.8)',
+                'rgba(16, 185, 129, 0.8)'
+            ],
+            borderColor: [
+                'rgba(59, 130, 246, 1)',
+                'rgba(245, 158, 11, 1)',
+                'rgba(16, 185, 129, 1)'
+            ],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+
+// Completion Trend Chart
+const trendCtx = document.getElementById('trendChart');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ metrics.completion_trend.labels|tojson }},
+        datasets: [{
+            label: 'Cards Completed',
+            data: {{ metrics.completion_trend.data|tojson }},
+            borderColor: 'rgba(16, 185, 129, 1)',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1 }
+            }
+        },
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+// Estimate vs Actual Chart
+{% if metrics.estimate_comparison.labels %}
+const estimateCtx = document.getElementById('estimateChart');
+new Chart(estimateCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ metrics.estimate_comparison.labels|tojson }},
+        datasets: [{
+            label: 'Estimated',
+            data: {{ metrics.estimate_comparison.estimated|tojson }},
+            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+            borderColor: 'rgba(59, 130, 246, 1)',
+            borderWidth: 1
+        }, {
+            label: 'Actual',
+            data: {{ metrics.estimate_comparison.actual|tojson }},
+            backgroundColor: 'rgba(245, 158, 11, 0.8)',
+            borderColor: 'rgba(245, 158, 11, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Hours' }
+            }
+        },
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}
