@@ -10,7 +10,7 @@ class Config:
 
     # Session Configuration
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
-    SESSION_COOKIE_SECURE = os.getenv('FLASK_ENV') == 'production'  # HTTPS only in production
+    SESSION_COOKIE_SECURE = os.getenv('REQUIRE_HTTPS', 'false').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
     SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
 
