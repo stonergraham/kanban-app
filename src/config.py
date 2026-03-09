@@ -13,6 +13,7 @@ class Config:
     SESSION_COOKIE_SECURE = os.getenv('REQUIRE_HTTPS', 'false').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
     SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
+    SESSION_COOKIE_PATH = '/'  # Always root — prevents login loop when APPLICATION_ROOT is set
 
     # Database
     basedir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -24,3 +25,4 @@ class Config:
     MAX_USERS = int(os.getenv('MAX_USERS', 10))
     PORT = int(os.getenv('PORT', 3000))
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+    APPLICATION_ROOT = os.getenv('APPLICATION_ROOT', '/kanban')
