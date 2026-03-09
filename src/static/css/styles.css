@@ -521,6 +521,27 @@ body {
     margin-top: 0.25rem;
 }
 
+.card-deadline {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.card-deadline.overdue {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.overdue-count {
+    font-size: 0.7rem;
+    background: #fee2e2;
+    color: #dc2626;
+    border-radius: 9999px;
+    padding: 0.1rem 0.5rem;
+    font-weight: 600;
+    margin-left: 0.25rem;
+}
+
 .card-completed {
     font-size: 0.75rem;
     color: var(--success-color);

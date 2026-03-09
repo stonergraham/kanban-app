@@ -211,4 +211,33 @@ function saveCommentEdit(commentId, newText, originalDiv) {
     });
 }
 
+// Move to Board
+function moveCardToBoard() {
+    const boardId = document.getElementById('moveToBoardSelect').value;
+    const column = document.getElementById('moveToColumnSelect').value;
+
+    if (!boardId) {
+        alert('Please select a board');
+        return;
+    }
+
+    fetch(`/card/${CARD_ID}/move-to-board`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ board_id: parseInt(boardId), column: column })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.redirect;
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error moving card');
+    });
+}
+
 console.log('Card detail page loaded');

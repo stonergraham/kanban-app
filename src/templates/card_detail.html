@@ -89,10 +89,16 @@
             
             <div class="form-group">
                 <label for="tags">Tags (comma-separated)</label>
-                <input type="text" id="tags" name="tags" value="{{ card.tags or '' }}" 
+                <input type="text" id="tags" name="tags" value="{{ card.tags or '' }}"
                        placeholder="bug, feature, urgent">
             </div>
-            
+
+            <div class="form-group">
+                <label for="deadline">Completion Deadline</label>
+                <input type="date" id="deadline" name="deadline"
+                       value="{{ card.deadline.strftime('%Y-%m-%d') if card.deadline else '' }}">
+            </div>
+
         </form>
         <div class="form-actions">
             <button type="submit" form="edit-card-form" class="btn btn-primary">Save Changes</button>
@@ -102,6 +108,33 @@
             </form>
         </div>
         
+        <!-- Move to Board Section (parking lot only) -->
+        {% if board.is_parking_lot and accessible_boards %}
+        <div class="card-section">
+            <h3>Move to Board</h3>
+            <div class="form-row">
+                <div class="form-group flex-2">
+                    <select id="moveToBoardSelect">
+                        <option value="">Select a board...</option>
+                        {% for b in accessible_boards %}
+                        <option value="{{ b.id }}">{{ b.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select id="moveToColumnSelect">
+                        <option value="assigned">Assigned</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="complete">Complete</option>
+                    </select>
+                </div>
+                <div class="form-group form-group-action">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="moveCardToBoard()">Move</button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Assignee Section -->
         {% if not board.is_parking_lot %}
         <div class="card-section">

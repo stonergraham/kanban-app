@@ -72,6 +72,8 @@
             <div class="column-header">
                 <h2>Assigned</h2>
                 <span class="card-count">{{ assigned_cards|length }}</span>
+                {% set overdue_count = assigned_cards|selectattr('is_overdue', 'equalto', true)|list|length %}
+                {% if overdue_count > 0 %}<span class="overdue-count">{{ overdue_count }} overdue</span>{% endif %}
             </div>
             <button class="btn btn-primary btn-sm btn-add-card" onclick="showCreateCardModal('assigned')">+ Add Card</button>
             
@@ -100,6 +102,11 @@
                         {% if card.time_estimate > 0 %}
                         <div class="card-time">⏱️ {{ card.time_estimate }}h</div>
                         {% endif %}
+                        {% if card.deadline %}
+                        <div class="card-deadline {% if card.is_overdue %}overdue{% endif %}">
+                            {% if card.is_overdue %}⚠️ Overdue: {% else %}📅 {% endif %}{{ card.deadline.strftime('%b %d') }}
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="card-quick-actions">
                         <button class="btn-icon move-btn" data-move-to="in_progress" title="Move to In Progress">→</button>
@@ -120,6 +127,8 @@
             <div class="column-header">
                 <h2>In Progress</h2>
                 <span class="card-count">{{ in_progress_cards|length }}</span>
+                {% set overdue_count = in_progress_cards|selectattr('is_overdue', 'equalto', true)|list|length %}
+                {% if overdue_count > 0 %}<span class="overdue-count">{{ overdue_count }} overdue</span>{% endif %}
             </div>
             <button class="btn btn-primary btn-sm btn-add-card" onclick="showCreateCardModal('in_progress')">+ Add Card</button>
             
@@ -147,6 +156,11 @@
                         {% endif %}
                         {% if card.time_estimate > 0 %}
                         <div class="card-time">⏱️ {{ card.time_estimate }}h / {{ card.time_actual }}h</div>
+                        {% endif %}
+                        {% if card.deadline %}
+                        <div class="card-deadline {% if card.is_overdue %}overdue{% endif %}">
+                            {% if card.is_overdue %}⚠️ Overdue: {% else %}📅 {% endif %}{{ card.deadline.strftime('%b %d') }}
+                        </div>
                         {% endif %}
                     </div>
                     <div class="card-quick-actions">

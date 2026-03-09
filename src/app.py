@@ -334,7 +334,19 @@ def view_card(card_id):
         flash('You do not have access to this card', 'error')
         return redirect(url_for('dashboard'))
     
-    return render_template('card_detail.html', card=card, board=board)
+    # For parking lot cards, find boards user can move to
+    accessible_boards = []
+    if board.is_parking_lot:
+        accessible_boards = Board.query.filter(
+            db.or_(
+                Board.owner_id == current_user.id,
+                Board.members.any(id=current_user.id)
+            ),
+            Board.is_parking_lot == False,
+            Board.archived == False
+        ).all()
+
+    return render_template('card_detail.html', card=card, board=board, accessible_boards=accessible_boards)
 
 @app.route('/card/<int:card_id>/edit', methods=['POST'])
 @login_required
@@ -365,7 +377,14 @@ def edit_card(card_id):
     # Tags
     tags = request.form.get('tags', '')
     card.tags = tags
-    
+
+    # Deadline
+    deadline_str = request.form.get('deadline', '')
+    if deadline_str:
+        card.deadline = datetime.strptime(deadline_str, '%Y-%m-%d').date()
+    else:
+        card.deadline = None
+
     db.session.commit()
     
     flash('Card updated successfully!', 'success')
@@ -439,6 +458,58 @@ def move_card(card_id):
         'old_column': old_column,
         'new_column': new_column
     })
+
+@app.route('/card/<int:card_id>/move-to-board', methods=['POST'])
+@login_required
+def move_card_to_board(card_id):
+    card = db.session.get(Card, card_id) or abort(404)
+    source_board = card.board
+
+    if not source_board.is_parking_lot:
+        return jsonify({'error': 'Card is not in parking lot'}), 400
+
+    if source_board.owner_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
+
+    data = request.get_json()
+    target_board_id = data.get('board_id')
+    target_column = data.get('column', 'assigned')
+
+    if not target_board_id:
+        return jsonify({'error': 'Target board is required'}), 400
+
+    target_board = db.session.get(Board, target_board_id)
+    if not target_board:
+        return jsonify({'error': 'Board not found'}), 404
+
+    if target_board.owner_id != current_user.id and current_user not in target_board.members:
+        return jsonify({'error': 'Access denied to target board'}), 403
+
+    if target_board.is_parking_lot:
+        return jsonify({'error': 'Cannot move to another parking lot'}), 400
+
+    if target_column not in ['assigned', 'in_progress', 'complete']:
+        target_column = 'assigned'
+
+    max_position = db.session.query(db.func.max(Card.position)).filter_by(
+        board_id=target_board_id, column=target_column
+    ).scalar() or 0
+
+    card.move_to_board(target_board_id, target_column)
+    card.position = max_position + 1
+
+    db.session.commit()
+
+    activity = ActivityLog(
+        board_id=source_board.id,
+        user_id=current_user.id,
+        action='moved_to_board',
+        details=f'Moved "{card.title}" to board "{target_board.name}"'
+    )
+    db.session.add(activity)
+    db.session.commit()
+
+    return jsonify({'success': True, 'redirect': url_for('view_card', card_id=card_id)})
 
 # ============================================================================
 # BOARD SHARING & MEMBERS

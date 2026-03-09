@@ -1,7 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, date, timezone
 
 db = SQLAlchemy()
 
@@ -92,10 +92,13 @@ class Card(db.Model):
     completed_at = db.Column(db.DateTime, nullable=True)
     last_moved_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Deadline
+    deadline = db.Column(db.Date, nullable=True)
+
     # Archive
     archived = db.Column(db.Boolean, default=False)
     archived_at = db.Column(db.DateTime, nullable=True)
-    
+
     # Relationships
     assignee = db.relationship('User', backref='assigned_cards', lazy=True,
                               foreign_keys=[assignee_id])
@@ -109,6 +112,17 @@ class Card(db.Model):
                              cascade='all, delete-orphan',
                              order_by='CardHistory.timestamp.desc()')
     
+    @property
+    def is_overdue(self):
+        if self.deadline and self.column != 'complete':
+            return date.today() > self.deadline
+        return False
+
+    def move_to_board(self, target_board_id, column='assigned'):
+        self.board_id = target_board_id
+        self.column = column
+        self.last_moved_at = datetime.now(timezone.utc)
+
     def get_tags_list(self):
         return [tag.strip() for tag in (self.tags or '').split(',') if tag.strip()]
     
