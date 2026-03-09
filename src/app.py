@@ -10,11 +10,6 @@ app = Flask(__name__,
             template_folder='templates')
 app.config.from_object(Config)
 
-# Reverse proxy support (for serving at /kanban subpath via Nginx)
-from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-app.config['APPLICATION_ROOT'] = '/kanban'
-
 # Security headers
 @app.after_request
 def set_security_headers(response):

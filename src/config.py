@@ -25,4 +25,3 @@ class Config:
     MAX_USERS = int(os.getenv('MAX_USERS', 10))
     PORT = int(os.getenv('PORT', 3000))
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
-    APPLICATION_ROOT = os.getenv('APPLICATION_ROOT', '/kanban')
