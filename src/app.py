@@ -792,10 +792,13 @@ def calculate_board_metrics(board_id):
     for i in range(4, -1, -1):
         week_start = datetime.now(timezone.utc) - timedelta(weeks=i + 1)
         week_end = datetime.now(timezone.utc) - timedelta(weeks=i)
+        # Convert to naive for comparison
+        week_start_naive = week_start.replace(tzinfo=None)
+        week_end_naive = week_end.replace(tzinfo=None)
         label = week_start.strftime('%b %d')
-        weekly_created[label] = len([c for c in all_cards if week_start <= c.created_at < week_end])
+        weekly_created[label] = len([c for c in all_cards if week_start_naive <= c.created_at < week_end_naive])
         weekly_completed[label] = len([
-            c for c in completed_cards if c.completed_at and week_start <= c.completed_at < week_end
+            c for c in completed_cards if c.completed_at and week_start_naive <= c.completed_at < week_end_naive
         ])
 
     return {
@@ -878,8 +881,10 @@ def calculate_user_metrics(user_id, board_ids):
 
     # Recent activity (last 7 days)
     seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    cards_this_week = len([c for c in all_cards if c.created_at >= seven_days_ago])
-    completed_this_week = len([c for c in completed_cards if c.completed_at and c.completed_at >= seven_days_ago])
+    # Make seven_days_ago naive to match database timestamps
+    seven_days_ago_naive = seven_days_ago.replace(tzinfo=None)
+    cards_this_week = len([c for c in all_cards if c.created_at >= seven_days_ago_naive])
+    completed_this_week = len([c for c in completed_cards if c.completed_at and c.completed_at >= seven_days_ago_naive])
 
     # Chart data: Cards by column
     column_data = {
@@ -893,7 +898,8 @@ def calculate_user_metrics(user_id, board_ids):
     for i in range(6, -1, -1):
         date = datetime.now(timezone.utc) - timedelta(days=i)
         trend_labels.append(date.strftime('%b %d'))
-        day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        # Convert to naive datetime for comparison
+        day_start = date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
         day_end = day_start + timedelta(days=1)
         completed_on_day = len([
             c for c in completed_cards
