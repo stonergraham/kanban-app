@@ -211,6 +211,145 @@ function saveCommentEdit(commentId, newText, originalDiv) {
     });
 }
 
+// Bulk Add Checklist Items
+function showBulkAddChecklist() {
+    document.getElementById('bulkAddChecklistForm').style.display = 'block';
+    document.getElementById('addChecklistForm').style.display = 'none';
+    document.getElementById('bulkChecklistText').focus();
+}
+
+function cancelBulkAddChecklist() {
+    document.getElementById('bulkAddChecklistForm').style.display = 'none';
+    document.getElementById('bulkChecklistText').value = '';
+}
+
+async function addBulkChecklistItems() {
+    const text = document.getElementById('bulkChecklistText').value.trim();
+    if (!text) return;
+
+    // Parse items — split by newlines, then by commas within each line
+    const items = [];
+    text.split('\n').forEach(line => {
+        line = line.trim();
+        if (!line) return;
+        if (line.includes(',')) {
+            line.split(',').map(s => s.trim()).filter(Boolean).forEach(s => items.push(s));
+        } else {
+            items.push(line);
+        }
+    });
+
+    if (items.length === 0) {
+        alert('No items found. Please enter at least one item.');
+        return;
+    }
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const itemText of items) {
+        const formData = new FormData();
+        formData.append('text', itemText);
+        formData.append('level', 0);
+
+        try {
+            const response = await fetch(`/card/${CARD_ID}/checklist/add`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.success) { successCount++; } else { errorCount++; }
+        } catch (error) {
+            console.error('Error adding item:', error);
+            errorCount++;
+        }
+    }
+
+    if (errorCount > 0) {
+        alert(`Added ${successCount} items. ${errorCount} failed.`);
+    }
+    window.location.reload();
+}
+
+// Checklist Drag and Drop
+let draggedChecklistItem = null;
+
+function handleChecklistDragStart(e) {
+    draggedChecklistItem = e.currentTarget;
+    e.currentTarget.style.opacity = '0.5';
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleChecklistDragEnd(e) {
+    e.currentTarget.style.opacity = '1';
+    document.querySelectorAll('.checklist-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+}
+
+function handleChecklistDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.currentTarget;
+    if (target !== draggedChecklistItem) {
+        target.classList.add('drag-over');
+    }
+    return false;
+}
+
+function handleChecklistDrop(e) {
+    e.stopPropagation();
+    const target = e.currentTarget;
+    target.classList.remove('drag-over');
+
+    if (!draggedChecklistItem || target === draggedChecklistItem) return false;
+
+    const draggedLevel = parseInt(draggedChecklistItem.dataset.level);
+    const targetLevel = parseInt(target.dataset.level);
+
+    if (draggedLevel !== targetLevel) {
+        alert('Can only reorder items at the same indentation level');
+        return false;
+    }
+
+    const parent = target.parentNode;
+    const rect = target.getBoundingClientRect();
+    const midpoint = rect.top + (rect.height / 2);
+
+    if (e.clientY < midpoint) {
+        parent.insertBefore(draggedChecklistItem, target);
+    } else {
+        parent.insertBefore(draggedChecklistItem, target.nextSibling);
+    }
+
+    updateChecklistPositions();
+    return false;
+}
+
+function updateChecklistPositions() {
+    const positions = [];
+    document.querySelectorAll('.checklist-item').forEach((item, index) => {
+        positions.push({ id: parseInt(item.dataset.itemId), position: index });
+    });
+
+    fetch(`/card/${CARD_ID}/checklist/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ positions: positions })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            console.error('Failed to update positions');
+            window.location.reload();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        window.location.reload();
+    });
+}
+
 // Move to Board
 function moveCardToBoard() {
     const boardId = document.getElementById('moveToBoardSelect').value;

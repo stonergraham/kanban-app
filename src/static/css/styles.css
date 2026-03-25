@@ -542,6 +542,22 @@ body {
     margin-left: 0.25rem;
 }
 
+/* Checklist Drag and Drop */
+.checklist-item.drag-over {
+    border-top: 2px solid var(--primary-color);
+}
+
+.checklist-item[draggable="true"] {
+    cursor: default;
+}
+
+.drag-handle {
+    cursor: move;
+    margin-right: 0.5rem;
+    color: var(--text-secondary);
+    user-select: none;
+}
+
 .card-completed {
     font-size: 0.75rem;
     color: var(--success-color);

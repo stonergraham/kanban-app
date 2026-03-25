@@ -1053,6 +1053,32 @@ def delete_checklist_item(item_id):
     
     return jsonify({'success': True})
 
+@app.route('/card/<int:card_id>/checklist/reorder', methods=['POST'])
+@login_required
+def reorder_checklist(card_id):
+    card = db.session.get(Card, card_id) or abort(404)
+    board = card.board
+
+    if board.owner_id != current_user.id and current_user not in board.members:
+        return jsonify({'error': 'Access denied'}), 403
+
+    data = request.get_json()
+    positions = data.get('positions', [])
+
+    if not positions:
+        return jsonify({'error': 'No positions provided'}), 400
+
+    for pos_data in positions:
+        item_id = pos_data.get('id')
+        new_position = pos_data.get('position')
+        if item_id is not None and new_position is not None:
+            item = db.session.get(ChecklistItem, item_id)
+            if item and item.card_id == card_id:
+                item.position = new_position
+
+    db.session.commit()
+    return jsonify({'success': True})
+
 @app.route('/checklist/<int:item_id>/indent', methods=['POST'])
 @login_required
 def indent_checklist_item(item_id):

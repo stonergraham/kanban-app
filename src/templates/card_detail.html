@@ -6,8 +6,16 @@
 
 <!-- MACRO MUST BE DEFINED FIRST -->
 {% macro render_checklist_item(item) %}
-<div class="checklist-item checklist-level-{{ item.level }}" data-item-id="{{ item.id }}" data-level="{{ item.level }}">
+<div class="checklist-item checklist-level-{{ item.level }}"
+     data-item-id="{{ item.id }}"
+     data-level="{{ item.level }}"
+     draggable="true"
+     ondragstart="handleChecklistDragStart(event)"
+     ondragend="handleChecklistDragEnd(event)"
+     ondragover="handleChecklistDragOver(event)"
+     ondrop="handleChecklistDrop(event)">
     <div class="checklist-item-content">
+        <span class="drag-handle">⋮⋮</span>
         <input type="checkbox"
                {% if item.completed %}checked{% endif %}
                data-item-id="{{ item.id }}"
@@ -168,7 +176,10 @@
         <div class="card-section">
             <div class="section-header">
                 <h3>Checklist</h3>
-                <button class="btn btn-sm btn-secondary" onclick="showAddChecklistItem()">+ Add Item</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-sm btn-secondary" onclick="showAddChecklistItem()">+ Add Item</button>
+                    <button class="btn btn-sm btn-secondary" onclick="showBulkAddChecklist()">+ Bulk Add</button>
+                </div>
             </div>
             
             <div id="checklistContainer">
@@ -189,6 +200,23 @@
                     <div class="form-actions">
                         <button class="btn btn-sm btn-primary" onclick="addChecklistItem()">Add</button>
                         <button class="btn btn-sm btn-secondary" onclick="cancelAddChecklistItem()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Add Form -->
+            <div id="bulkAddChecklistForm" style="display: none;">
+                <div class="checklist-add-form">
+                    <label for="bulkChecklistText" style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: block;">
+                        Enter items (one per line or separated by commas):
+                    </label>
+                    <textarea id="bulkChecklistText"
+                              placeholder="Item 1&#10;Item 2&#10;Item 3&#10;&#10;or: Item 1, Item 2, Item 3"
+                              class="form-control"
+                              rows="6"></textarea>
+                    <div class="form-actions">
+                        <button class="btn btn-sm btn-primary" onclick="addBulkChecklistItems()">Add All</button>
+                        <button class="btn btn-sm btn-secondary" onclick="cancelBulkAddChecklist()">Cancel</button>
                     </div>
                 </div>
             </div>
